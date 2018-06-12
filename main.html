@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" contents="width=device-width, user-scalable=no"/>
+    <title>RPiGamer</title>
+    <style>
+body
+{
+  width:100%;
+  height:100%;
+  padding:0px;
+  margin:0px;
+  position:absolute;
+  top:0px;
+  left:0px;
+  overflow:hidden;
+}
+#viewport
+{
+  width:100%;
+  height:100%;
+  position:absolute;
+  top:0px;
+  left:0px;
+  background:#242424;
+  color:white;
+  overflow:hidden;
+}
+#viewport > div
+{
+  width:100%;
+  min-height:100%;
+  position:absolute;
+  top:0px;
+  left:0px;
+  display:none;
+  text-align:center;
+  flex-direction:column;
+}
+#viewport > div.active
+{
+  display:block !important;
+}
+#games
+{
+  transition:all 0.4s;
+}
+#games > div
+{
+  transition:all 0.4s;
+  font-size:24px;
+}
+#games > .active
+{
+  font-size:32px;
+  font-weight:bold;
+  color:#52BE80;
+}
+    </style>
+  </head>
+  <body>
+    <div id="viewport">
+      <div id="loading" class="active">Loading</div>
+      <div id="games"></div>
+    </div>
+  </body>
+
+  <script src="./modules/notifications.js"></script>
+  <script>
+const electron = require('electron');
+const fs = require('fs');
+const mime = require('mime');
+const uuid = require('uuid');
+
+const {ipcRenderer} = electron;
+
+function renderGamesList () {
+  for (var i = 1; i < 100; i++) {
+    GAMES[i] = uuid.v4();
+  }
+  INDEX = 8;
+  document.querySelector('#games').innerHTML = GAMES.map((n, i) => {
+    let flag = i === INDEX ? true : false
+    return `<div ${flag ? `class="active" ` : ``}data-id="${n}"><p>${n}</p></div>`;
+  }).join('');
+  setImmediate(function () {
+    let active = document.querySelector('#games > .active');
+    let centerpoint = (document.querySelector('#viewport').offsetHeight / 2);
+    let currpos = active.offsetTop;
+    let move = centerpoint - currpos;
+    document.querySelector('#games').style.top = move + "px";
+    ACTIVESELECTION = active;
+  });
+};
+function setCurrent (id) {
+  CURRENT.classList.remove('active');
+  CURRENT = document.querySelector(`#${id}`);
+  CURRENT.classList.remove('active');
+  CURRENT.classList.add('active');
+};
+// Make manifest linter
+function lintManifest (manifeststr, path) {
+  // Check for controller page
+  try {
+    let manifest = JSON.parse(manifeststr);
+  }
+  catch (e) {
+    console.log("Manifest invalid", e);
+    return false;
+  }
+  return true;
+};
+
+let GAMES, INDEX, CURRENT, ACTIVESELECTION;
+
+(function () {
+  CURRENT = document.querySelector('.active');
+
+  let games = fs.readdirSync('./Games');
+  games = games.filter(function (game) {
+    if (/^[a-zA-Z0-9_ \-]+$/.test(game) && fs.statSync(`./Games/${game}`).isDirectory() && fs.existsSync(`./Games/${game}/.manifest`)) {
+      return lintManifest(fs.readFileSync(`./Games/${game}/.manifest`, 'utf-8'), `./Games/${game}/`);
+    }
+    else {
+      return false;
+    }
+  });
+  GAMES = games;
+  if (GAMES.length === 0) {
+    document.querySelector('#games').innerHTML = "No Games Found.";
+  }
+  else {
+    INDEX = 0;
+    renderGamesList();
+  }
+
+  setCurrent('games');
+})();
+
+ipcRenderer.on('up', function () {
+  if (INDEX > 0) {
+    INDEX--;
+    ACTIVESELECTION.classList.remove('active');
+    ACTIVESELECTION = document.querySelector(`#games > div[data-id="${GAMES[INDEX]}"]`);
+    ACTIVESELECTION.classList.add('active');
+    let centerpoint = (document.querySelector('#viewport').offsetHeight / 2);
+    let currpos = ACTIVESELECTION.offsetTop;
+    let move = centerpoint - currpos;
+    document.querySelector('#games').style.top = move + "px";
+  }
+});
+ipcRenderer.on('down', function () {
+  if (INDEX < (GAMES.length - 1)) {
+    INDEX++;
+    ACTIVESELECTION.classList.remove('active');
+    ACTIVESELECTION = document.querySelector(`#games > div[data-id="${GAMES[INDEX]}"]`);
+    ACTIVESELECTION.classList.add('active');
+    let centerpoint = (document.querySelector('#viewport').offsetHeight / 2);
+    let currpos = ACTIVESELECTION.offsetTop;
+    let move = centerpoint - currpos;
+    document.querySelector('#games').style.top = move + "px";
+  }
+});
+ipcRenderer.on('select', function () {
+  playNotifSound();
+  // check if game is valid and send over.
+  let game = GAMES[INDEX];
+  if (fs.existsSync(`./Games/${game}`) && fs.statSync(`./Games/${game}`).isDirectory()) {
+    if (fs.existsSync(`./Games/${game}/.manifest`) && lintManifest(fs.readFileSync(`./Games/${game}/.manifest`), `./Games/${game}/`)) {
+      // Send to main process as command::start
+      ipcRenderer.send('command::start', game);
+    }
+    else {
+      notify("short", `The game (${game}) is not valid. 1`);
+    }
+  }
+  else {
+    notify("short", `The game (${game}) is not valid. 0`);
+  }
+});
+ipcRenderer.on('controller::maxplayers', function () {
+  notify("long", `The max player limit has been reached.`);
+});
+  </script>
+</html>

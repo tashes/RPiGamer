@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no"/>
+    <title>Snake | RPiGamer</title>
+  </head>
+  <body>
+    SNAKE THE GAME
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/modules/players-controller.js"></script>
+    <script>
+      let socket = io();
+
+      socket.on('controller::maxplayers', function () {
+        alert("Max Player Size!");
+      });
+      socket.on('command::quitplayer', function () {
+        document.querySelector('#disabled').classList.add('show');
+      });
+      socket.on('command::reload', function () {
+        location.reload();
+      });
+      socket.on('disconnect', function () {
+        socket.disconnect(true);
+      });
+    </script>
+  </body>
+</html>

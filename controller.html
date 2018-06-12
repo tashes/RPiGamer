@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, user-scalable=no"/>
+    <title>RPiGamer Controller</title>
+    <style>
+body
+{
+  width:100%;
+  height:100%;
+  padding:0px;
+  margin:0px;
+  position:absolute;
+  top:0px;
+  left:0px;
+  overflow:hidden;
+  background:#242424;
+}
+#viewport
+{
+  width:100%;
+  height:100%;
+  position:absolute;
+  top:0px;
+  left:0px;
+  background:#242424;
+  color:white;
+  overflow:hidden;
+}
+#up
+{
+  position:absolute;
+  background:rgba(255,255,255,0.248);
+}
+#down
+{
+  position:absolute;
+  background:rgba(255,255,255,0.124);
+}
+#select
+{
+  position:absolute;
+  background:rgba(255,255,255,0.482);
+}
+@media screen and (orientation:portrait) {
+  #up
+  {
+    width:50%;
+    height:50%;
+    top:0px;
+    right:0px;
+  }
+  #down
+  {
+    width:50%;
+    height:50%;
+    top:0px;
+    left:0px;
+  }
+  #select
+  {
+    width:100%;
+    height:50%;
+    bottom:0px;
+    right:0px;
+  }
+}
+@media screen and (orientation:landscape) {
+  #up
+  {
+    width:50%;
+    height:50%;
+    top:0px;
+    left:0px;
+  }
+  #down
+  {
+    width:50%;
+    height:50%;
+    bottom:0px;
+    left:0px;
+  }
+  #select
+  {
+    width:50%;
+    height:100%;
+    right:0px;
+    top:0px;
+  }
+}
+#disabled
+{
+  width:100%;
+  height:100%;
+  position:absolute;
+  top:0px;
+  left:0px;
+  color:white;
+  background:rgba(0,0,0,0.84);
+  display:none;
+  align-items:center;
+  justify-content:center;
+}
+#disabled.show
+{
+  display:flex;
+}
+    </style>
+  </head>
+  <body>
+    <div id="viewport">
+      <div id="up">Up</div>
+      <div id="down">Down</div>
+      <div id="select">Select</div>
+    </div>
+    <div id="disabled">This Session Is Not Connected.</div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+let socket = io();
+
+let touch_id_up = null,
+  touch_id_down = null;
+
+document.querySelector('#up').addEventListener('touchstart', function () {
+  socket.emit('up');
+  touch_id_up = setInterval(function () {
+    socket.emit('up');
+  }, 300);
+});
+document.querySelector('#up').addEventListener('touchend', function () {
+  clearInterval(touch_id_up);
+  touch_id_up = null;
+});
+document.querySelector('#down').addEventListener('touchstart', function () {
+  socket.emit('down');
+  touch_id_down = setInterval(function () {
+    socket.emit('down');
+  }, 300);
+});
+document.querySelector('#down').addEventListener('touchend', function () {
+  clearInterval(touch_id_down);
+  touch_id_down = null;
+});
+document.querySelector('#select').addEventListener('click', function () {
+  socket.emit('select');
+});
+
+socket.on('controller::maxplayers', function () {
+  alert("Max Player Size!");
+});
+socket.on('command::quitplayer', function () {
+  document.querySelector('#disabled').classList.add('show');
+});
+socket.on('command::reload', function () {
+  location.reload();
+});
+socket.on('disconnect', function () {
+  socket.disconnect(true);
+});
+    </script>
+  </body>
+</html>

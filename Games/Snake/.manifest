@@ -1,0 +1,5 @@
+{
+  "controller": "controller/",
+  "main": "main.html",
+  "max": -1
+}

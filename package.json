@@ -1,0 +1,17 @@
+{
+  "name": "rpigamer",
+  "version": "1.0.0",
+  "description": "A game system for the rpi to hook up to a monitor and then connect with phones as controllers",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "Ashwin Abraham",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "^2.0.2",
+    "ip": "^1.1.5",
+    "mime": "^2.3.1",
+    "socket.io": "^2.1.1"
+  }
+}
