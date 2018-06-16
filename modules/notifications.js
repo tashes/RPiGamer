@@ -156,7 +156,7 @@
   // clear perm notifications function
   function clearPermNotificationById (id) {
     let ele = document.querySelector(`[data-id="${id}"]`);
-    ele.className += " exit";
+    ele.classList.add("exit");
     setTimeout(function () {
       if (ele !== null) {
         ele.parentElement.removeChild(ele);
@@ -185,6 +185,7 @@
   }
 
   let IP_NOTIFICATION = "";
+  let NOTIFICATIONLEVEL = 1;
 
   // Set up listeners
   ipcRenderer.on('controller::start', function () {
@@ -194,13 +195,19 @@
     clearPermNotificationById(IP_NOTIFICATION);
   });
   ipcRenderer.on('controller::empty', function () {
+    if (IP_NOTIFICATION !== "") {
+      clearPermNotificationById(IP_NOTIFICATION);
+    }
     IP_NOTIFICATION = notify("perm", `Started the controller server on <a href="http://${ip.address()}:9753">http://${ip.address()}:9753</a>.`);
   });
   ipcRenderer.on('controller::newplayer', function (e, id) {
-    notify("medium", `A new player (${id}) has joined this session.`);
+    if (NOTIFICATIONLEVEL >= 1) notify("medium", `A new player (${id}) has joined this session.`);
   });
   ipcRenderer.on('controller::playerexit', function (e, id) {
-    notify("medium", `Player (${id}) has left the session.`);
+    if (NOTIFICATIONLEVEL >= 1) notify("medium", `Player (${id}) has left the session.`);
   });
 
+  window.setNotificationLevel = function (level) {
+    NOTIFICATIONLEVEL = level;
+  };
 })();

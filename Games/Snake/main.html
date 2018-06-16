@@ -7,12 +7,19 @@
   </head>
   <body>
     SNAKE THE GAME!!!!
-
+    <p id="hi"></p>
 
     <script src="../../modules/notifications.js"></script>
     <script src="../../modules/players-main.js"></script>
     <script>
-
+    let electron = require('electron');
+    let ipcRenderer = electron.ipcRenderer;
+    ipcRenderer.on('controller::newplayer', function () {
+      alert();
+    });
+    ipcRenderer.on('action::hi', function () {
+      document.querySelector('p#hi').innerHTML += "Baap<br/>";
+    });
     </script>
   </body>
 </html>

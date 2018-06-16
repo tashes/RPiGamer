@@ -25,6 +25,16 @@ function doToMain (callback) {
     });
   }
 };
+function doToSession (callback) {
+  if (SessionWindow.isVisible()) {
+    callback();
+  }
+  else {
+    SessionWindow.once('show', function () {
+      callback();
+    });
+  }
+};
 // Make manifest linter
 function lintManifest (manifeststr, path, retflag) {
   // Check for controller page
@@ -40,7 +50,7 @@ function lintManifest (manifeststr, path, retflag) {
       return false;
     }
     // Check for max players
-    if (manifest.max) {
+    if (typeof manifest.max !== undefined) {
       if (!(typeof manifest.max === "number")) {
         console.log("Manifest max invalid: " + manifest.max);
         return false;
@@ -59,16 +69,16 @@ function lintManifest (manifeststr, path, retflag) {
         return false;
       }
     }
+    if (retflag) {
+      return manifest;
+    }
+    else {
+      return true;
+    }
   }
   catch (e) {
     console.log("Manifest invalid", e);
     return false;
-  }
-  if (retflag) {
-    return JSON.parse(manifeststr);
-  }
-  else {
-    return true;
   }
 };
 
@@ -105,8 +115,7 @@ app.on('ready', function () {
         frame: false,
         show:false,
         backgroundColor: "#FFFFFF",
-        kosik: true,
-        parent: Main
+        kosik: true
       });
       SessionWindow.on('ready-to-show', function () {
         SessionWindow.show();
@@ -119,7 +128,7 @@ app.on('ready', function () {
           socket.emit('command::reload');
         });
       });
-      // Load game html to Main
+      // Load game html to Sessiom Window
       SessionWindow.loadURL(url.format({
         pathname: path.join(__dirname, "Games", Session, manifest.main),
         protocol: 'file',
@@ -139,7 +148,18 @@ app.on('ready', function () {
       SessionWindow.close();
     }
   });
-  ipcMain.on('player::getdata', function (e, ) {}); // COMBAK
+  ipcMain.on('player::getdata', function (e, socketid) {
+    let soc = SocketList.find(n => n.id === socketid);
+    if (soc) {
+      soc.emit('player::getdata', Session);
+    }
+  });
+  ipcMain.on('player::savedata', function (e, socketid, data) {
+    let soc = SocketList.find(n => n.id === socketid);
+    if (soc) {
+      soc.emit('player::savedata', Session, data);
+    }
+  });
 
   // Controller Server
   Controller = http.createServer(function (req, res) {
@@ -203,22 +223,43 @@ app.on('ready', function () {
       return s.id === socket.id
     }) === -1) {
       SocketList.push(socket);
-      doToMain(function () {
-        Main.webContents.send("controller::newplayer", socket.id);
-        if (SocketList.length === 1) {
-          Main.webContents.send("controller::occupied");
+        if (Session === null) {
+          doToMain(function () {
+            Main.webContents.send("controller::newplayer", socket.id);
+            if (SocketList.length === 1) {
+              Main.webContents.send("controller::occupied");
+            }
+          });
         }
-      });
+        else {
+          doToSession(function () {
+            SessionWindow.webContents.send("controller::newplayer", socket.id);
+            if (SocketList.length === 1) {
+              SessionWindow.webContents.send("controller::occupied");
+            }
+          });
+        }
     }
     socket.on('disconnect', function () {
       if (SocketList.findIndex(s => s.id === socket.id) > -1) {
         SocketList.splice(SocketList.findIndex(s => s.id === socket.id), 1);
-        doToMain(function () {
-          Main.webContents.send("controller::playerexit", socket.id);
-          if (SocketList.length === 0) {
-            Main.webContents.send("controller::empty");
-          }
-        });
+        if (Session === null) {
+          doToMain(function () {
+            Main.webContents.send("controller::playerexit", socket.id);
+            if (SocketList.length === 0) {
+              Main.webContents.send("controller::empty");
+            }
+          });
+        }
+        else {
+          doToSession(function () {
+            SessionWindow.webContents.send("controller::playerexit", socket.id);
+            if (SocketList.length === 0) {
+              console.log("HELLO");
+              SessionWindow.webContents.send("controller::empty");
+            }
+          });
+        }
       }
     });
     if (Session === null) {
@@ -242,23 +283,31 @@ app.on('ready', function () {
     else {
       // Connect Socket with controller
       if (SocketList.length > lintManifest(fs.readFileSync(`./Games/${Session}/.manifest`, 'utf-8'), `./Games/${Session}/`, true).max) {
+        console.log(lintManifest(fs.readFileSync(`./Games/${Session}/.manifest`, 'utf-8'), `./Games/${Session}/`, true).max);
         socket.emit('controller::maxplayers');
-        Main.webContents.send('controller::maxplayers');
+        SessionWindow.webContents.send('controller::maxplayers');
         socket.disconnect(true);
       }
       // Connect with game controller sockets
       socket.use((packet, next) => {
         let name = packet.shift();
-        Main.webContents.send("action::" + name, socket.id, ...packet);
+        SessionWindow.webContents.send("action::" + name, socket.id, ...packet);
         next();
       });
     }
   });
   Controller.listen(9753, function (err) {
     if (err) throw err;
-    doToMain(function () {
-      Main.webContents.send("controller::start");
-    });
+    if (Session === null) {
+      doToMain(function () {
+        Main.webContents.send("controller::start");
+      });
+    }
+    else {
+      doToSession(function () {
+        SessionWindow.webContents.send("controller::start");
+      });
+    }
   });
 });
 

@@ -7,7 +7,15 @@
   </head>
   <body>
     SNAKE THE GAME
+    <p id="hi"></p>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script>
+    let socket = io();
+    setInterval(() => {
+      document.querySelector('p#hi').innerHTML += "Boop<br/>";
+      socket.emit('hi');
+    }, 4000);
+    </script>
   </body>
 </html>
