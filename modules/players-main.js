@@ -10,7 +10,6 @@
   function emit (evt,  ...ms) {
     if (EVTS[evt] instanceof Array) {
       EVTS[evt].forEach(p => {
-        console.log(ms);
         p(...ms);
       });
     }
@@ -24,7 +23,8 @@
           id: id,
           name: "awaiting",
           playerdata: "awaiting",
-          currentdata: {}
+          currentdata: {},
+          evts: {}
         };
         ipcRenderer.send('player::getdata', id);
       }
@@ -46,8 +46,15 @@
       PLAYERS[this.id].currentdata = currentdata;
     }
 
+    onAction (evtname, callback) {
+      if (!(PLAYERS[this.id].evts[evtname] instanceof Array)) {
+        PLAYERS[this.id].evts[evtname] = [];
+      }
+      PLAYERS[this.id].evts[evtname].push(callback);
+    }
+
     save () {
-      ipcRenderer.send('player::savedata', id, PLAYERS[this.id].currentdata);
+      ipcRenderer.send('player::savedata', this.id, JSON.stringify(PLAYERS[this.id].currentdata));
     }
   }
 
@@ -59,10 +66,10 @@
     if (!(EVTS[evt] instanceof Array)) {
       EVTS[evt] = [];
     }
-    evts[evt].push(callback);
+    EVTS[evt].push(callback);
   };
   Players.getPlayers = function () {
-    return Object.keys(PLAYERS).map(p => new Player(p.id));
+    return Object.keys(PLAYERS).map(p => new Player(p));
   };
 
   // Scilence level >=1 notifications
@@ -73,9 +80,6 @@
     // Makes a player & starts by getting all the player data
     let player = new Player(id);
     emit('player::newplayer', player);
-    if (window.notify) {
-      window.notify("medium", `New Player <i>${player.name}`);
-    }
   });
   ipcRenderer.on('controller::playerexit', function (e, id) {
     // Removes player
@@ -86,6 +90,9 @@
     PLAYERS[id].playerdata = PLAYERS[id].currentdata = data;
     PLAYERS[id].name = name;
     emit('player::getdata', new Player(id));
+    if (window.notify) {
+      window.notify("medium", `New Player <i>${PLAYERS[id].name} has joined the game.`);
+    }
   });
   ipcRenderer.on('action::player::savedata', function (e, id, success) {
     emit('player::savedata', new Player(id));
@@ -93,6 +100,9 @@
       window.setNotificationLevel(0);
       window.notify("short", success ? `Player ${PLAYERS[id].name} has saved his game.` : `Player ${PLAYERS[id].name} could not save the game.`);
     }
+  });
+  ipcRenderer.on('action::player::action', function (e, id, evtname, data) {
+    PLAYERS[id].evts[evtname].forEach(p => p(...data));
   });
 
   window.Players = Players;

@@ -4,21 +4,27 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no"/>
     <title>Snake | RPiGamer</title>
+    <link rel="stylesheet" href="./assets/css/styles.css"/>
   </head>
   <body>
-    SNAKE THE GAME!!!!
-    <p id="hi"></p>
+    <div id="viewport">
+      <div id="players"></div>
+      <div id="gamearea">
+        <canvas></canvas>
+      </div>
+    </div>
 
     <script src="../../modules/notifications.js"></script>
     <script src="../../modules/players-main.js"></script>
     <script>
     let electron = require('electron');
     let ipcRenderer = electron.ipcRenderer;
-    ipcRenderer.on('controller::newplayer', function () {
-      alert();
-    });
-    ipcRenderer.on('action::hi', function () {
-      document.querySelector('p#hi').innerHTML += "Baap<br/>";
+    let poo;
+    Players.on('player::newplayer', function (player) {
+      player.onAction('moveup', function (num, text) {
+        alert(num + " " + text);
+      });
+      console.log(player);
     });
     </script>
   </body>

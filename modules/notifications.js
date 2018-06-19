@@ -5,7 +5,7 @@
   }
 
   // Setup notification sound
-  let notifsound = new Audio('intuition.mp3');
+  let notifsound = new Audio('/intuition.mp3');
 
   // Setup html
   let notifs_style = document.createElement('style');
@@ -156,12 +156,14 @@
   // clear perm notifications function
   function clearPermNotificationById (id) {
     let ele = document.querySelector(`[data-id="${id}"]`);
-    ele.classList.add("exit");
-    setTimeout(function () {
-      if (ele !== null) {
-        ele.parentElement.removeChild(ele);
-      }
-    }, 240);
+    if (ele) {
+      ele.classList.add("exit");
+      setTimeout(function () {
+        if (ele !== null) {
+          ele.parentElement.removeChild(ele);
+        }
+      }, 240);
+    }
   };
   function playNotifSound () {
     notifsound.play();

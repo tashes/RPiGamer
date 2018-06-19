@@ -136,7 +136,7 @@ app.on('ready', function () {
       }));
       // Hide Main
       Main.hide();
-      // Reload the Controllers TODO COMBAK 1
+      // TODO Reload the Controllers
       SocketList.forEach(socket => {
         socket.emit('command::reload');
       });
@@ -183,19 +183,21 @@ app.on('ready', function () {
       // Make it a proper server from path join + gamename
       let URL = url.parse(req.url);
       if (URL.path[URL.path.length - 1] === "/")  URL.path += "index.html";
-      if (URL.path.search("/modules/") > -1) {
-        let p = /\/modules\/(.+)/.exec(URL.path);
+      if (/^\/modules\/(.+)/.test(URL.path)) {
+        let p = /^\/modules\/(.+)/.exec(URL.path);
         fs.readFile('./modules/' + p[1], 'utf-8', function (err, data) {
           if (err) {
             res.writeHead(500);
             res.end("Server Error:\n\n" + err + "");
+            return false;
           }
           else {
             res.writeHead(200, {
               'Content-Length': Buffer.byteLength(data),
-              'Content-Type': mime.getType("./controller" + URL.path)
+              'Content-Type': mime.getType("./modules/" + p[1])
             });
             res.end(data);
+            return true;
           }
         });
       }
@@ -204,6 +206,7 @@ app.on('ready', function () {
           if (err) {
             res.writeHead(500);
             res.end("Server Error:\n\n" + err + ""); // TODO Add Socket support for reload & all
+            return false;
           }
           else {
             res.writeHead(200, {
@@ -211,6 +214,7 @@ app.on('ready', function () {
               'Content-Type': mime.getType("./controller" + URL.path)
             });
             res.end(data);
+            return true;
           }
         });
       }
@@ -240,7 +244,7 @@ app.on('ready', function () {
           });
         }
     }
-    socket.on('disconnect', function () {
+    socket.on('disconnecting', function () {
       if (SocketList.findIndex(s => s.id === socket.id) > -1) {
         SocketList.splice(SocketList.findIndex(s => s.id === socket.id), 1);
         if (Session === null) {
@@ -252,10 +256,10 @@ app.on('ready', function () {
           });
         }
         else {
+          socket.emit('player::close', "You have been disconnected.");
           doToSession(function () {
             SessionWindow.webContents.send("controller::playerexit", socket.id);
             if (SocketList.length === 0) {
-              console.log("HELLO");
               SessionWindow.webContents.send("controller::empty");
             }
           });
@@ -283,7 +287,6 @@ app.on('ready', function () {
     else {
       // Connect Socket with controller
       if (SocketList.length > lintManifest(fs.readFileSync(`./Games/${Session}/.manifest`, 'utf-8'), `./Games/${Session}/`, true).max) {
-        console.log(lintManifest(fs.readFileSync(`./Games/${Session}/.manifest`, 'utf-8'), `./Games/${Session}/`, true).max);
         socket.emit('controller::maxplayers');
         SessionWindow.webContents.send('controller::maxplayers');
         socket.disconnect(true);
@@ -291,7 +294,7 @@ app.on('ready', function () {
       // Connect with game controller sockets
       socket.use((packet, next) => {
         let name = packet.shift();
-        SessionWindow.webContents.send("action::" + name, socket.id, ...packet);
+        if (Session !== null) SessionWindow.webContents.send("action::" + name, socket.id, ...packet);
         next();
       });
     }

@@ -4,18 +4,20 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no"/>
     <title>Snake | RPiGamer</title>
+    <link rel="stylesheet" href="assets/css/styles.css"/>
   </head>
   <body>
-    SNAKE THE GAME
-    <p id="hi"></p>
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/modules/players-controller.js"></script>
     <script>
-    let socket = io();
-    setInterval(() => {
-      document.querySelector('p#hi').innerHTML += "Boop<br/>";
-      socket.emit('hi');
-    }, 4000);
+    //let socket = io();
+    let i = 0;
+
+    document.addEventListener('touchstart', function () {
+      action('moveup', i++, "hello");
+      alert(window.localStorage.getItem('Snake'));
+    });
     </script>
   </body>
 </html>
