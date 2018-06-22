@@ -71,6 +71,9 @@
   Players.getPlayers = function () {
     return Object.keys(PLAYERS).map(p => new Player(p));
   };
+  Players.getAllCurrentData = function () {
+    return Object.keys(PLAYERS).map(p => new Player(p).currentData);
+  };
 
   // Scilence level >=1 notifications
   if (window.notify) window.setNotificationLevel(0);
@@ -101,8 +104,18 @@
       window.notify("short", success ? `Player ${PLAYERS[id].name} has saved his game.` : `Player ${PLAYERS[id].name} could not save the game.`);
     }
   });
+  ipcRenderer.on('action::player::updatename', function (e, id, name, prevname) {
+    PLAYERS[id].name = name;
+    emit('player::updatename', new Player(id));
+    if (window.notify) {
+      window.notify("medium", `Player ${prevname} has changed name to ${name}`);
+    }
+  });
   ipcRenderer.on('action::player::action', function (e, id, evtname, data) {
     PLAYERS[id].evts[evtname].forEach(p => p(...data));
+  });
+  ipcRenderer.on('action::command::quit', function () {
+    ipcRenderer.send('command::stop');
   });
 
   window.Players = Players;

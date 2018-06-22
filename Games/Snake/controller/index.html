@@ -8,16 +8,28 @@
   </head>
   <body>
 
+    <div id="viewport">
+      <div id="left">Left</div>
+      <div id="right">Right</div>
+    </div>
+
+
+    <script>
+
+    </script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/modules/players-controller.js"></script>
+    <script src="/modules/fullscreen.js"></script>
     <script>
-    //let socket = io();
-    let i = 0;
 
-    document.addEventListener('touchstart', function () {
-      action('moveup', i++, "hello");
-      alert(window.localStorage.getItem('Snake'));
+    document.querySelector('#left').addEventListener('touchstart', function () {
+      action('left');
     });
+    document.querySelector('#right').addEventListener('touchstart', function () {
+      action('right');
+    });
+
+    requestFullScreen(document.body);
     </script>
   </body>
 </html>

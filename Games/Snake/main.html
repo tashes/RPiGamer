@@ -8,7 +8,16 @@
   </head>
   <body>
     <div id="viewport">
-      <div id="players"></div>
+      <div id="players">
+        <div class="player">
+          <div class="colour"></div>
+          <div class="score">1040</div>
+        </div>
+        <div class="player">
+          <div class="colour"></div>
+          <div class="score">1080</div>
+        </div>
+      </div>
       <div id="gamearea">
         <canvas></canvas>
       </div>
@@ -17,14 +26,202 @@
     <script src="../../modules/notifications.js"></script>
     <script src="../../modules/players-main.js"></script>
     <script>
-    let electron = require('electron');
-    let ipcRenderer = electron.ipcRenderer;
-    let poo;
-    Players.on('player::newplayer', function (player) {
-      player.onAction('moveup', function (num, text) {
-        alert(num + " " + text);
+    const uuid = require('uuid');
+
+    const CANVAS = document.querySelector('#gamearea > canvas');
+    const CTX = CANVAS.getContext('2d');
+    let WIDTH, HEIGHT;
+    let TILESIZE = 32;
+
+    let WORLD_X, WORLD_Y;
+
+    let ORGANISMS = [
+      // {
+      //   // Id
+      //   id: "dfghjkl",
+      //   // Velocity
+      //   v: [0,0],
+      //   // Body
+      //   b: [[2,2],[2,3],[3,3],[4,3],[4,4],[4,5],[4,6]],
+      //   // Growth flag
+      //   g_: false,
+      //   // Colour
+      //   c_: `rgb(255,0,0)`
+      // }
+    ];
+
+    let drawgridx, maxgridx, drawgridy, maxgridy, n;
+
+    // add Organism
+    function Organism (id, velocity, bodylen, colour) {
+      if (id === undefined) id = uuid.v4();
+      // id
+      this.id = id;
+      // velocity
+      this.v = velocity;
+      // body
+      this.b = [[Math.floor(Math.random() * WORLD_X),Math.floor(Math.random() * WORLD_Y)]];
+      bodylen--;
+      for (let i = 0; i < bodylen; i++) {
+        let part = [this.b[0][0], this.b[0][1]];
+        if (velocity[0] < 0) {
+          part[0]++;
+          if (part[0] > WORLD_X) {part[0] = (part[0] - WORLD_X);}
+        }
+        else if (velocity[0] > 0) {
+          part[0]--;
+          if (part[0] < 0) {part[0] = (WORLD_X - part[0]);}
+        }
+        else {}
+        if (velocity[1] < 0) {
+          part[1]++;
+          if (part[1] > WORLD_Y) {part[1] = (part[1] - WORLD_Y);}
+        }
+        else if (velocity[1] > 0) {
+          part[1]--;
+          if (part[1] < 0) {part[1] = (WORLD_Y - part[1]);}
+        }
+        else {}
+        this.b.push(part);
+      }
+      // growth flag
+      this.g_ = false;
+      // colour flag
+      this.c_ = colour;
+      // events
+      this.e = {};
+      // add to organisms list
+      ORGANISMS.push(this);
+      // return
+      return this;
+    };
+    Organism.prototype = {
+      on: function (evt, callback) {
+        if (!this.e[evt] instanceof Array) {
+          this.e[evt] = [];
+        }
+        this.e[evt].push(callback);
+      }
+    };
+
+    // Organism tick function
+    function organismTick () {
+      let collisionobjs = [];
+      ORGANISMS = ORGANISMS.map(organism => {
+        let velocity = [organism.v[0], organism.v[1]];
+        let maj = velocity.reduce((ass, p) => {
+          p = p < 0 ? -1 * p : p;
+          return ass > p ? ass : p
+        }, 0);
+        for (let j = 0; j < maj; j++) {
+          // remove from tail end
+          if (organism.g_ === false) organism.b.pop();
+          // add to headend
+          let head_curr = organism.b[0];
+          let head_new = [head_curr[0], head_curr[1]];
+          if (velocity[0] !== 0) {
+            head_new[0] += (velocity[0] < 0 ? -1 : +1);
+            if (head_new[0] < 0) {head_new[0] = WORLD_X;}
+            else if (head_new[0] > WORLD_X) {head_new[0] = 0;}
+            velocity[0] < 0 ? velocity[0]++ : velocity[0]--;
+          }
+          if (velocity[1] !== 0) {
+            head_new[1] += (velocity[1] < 0 ? -1 : +1);
+            if (head_new[1] < 0) {head_new[1] = WORLD_Y;}
+            else if (head_new[1] > WORLD_Y) {head_new[1] = 0;}
+            velocity[1] < 0 ? velocity[1]++ : velocity[1]--;
+          }
+          organism.b.unshift(head_new);
+        }
+        organism.g_ = false;
+        collisionobjs = collisionobjs.concat(organism.b.map(n => {n.push(this.id); return n;}));
+        return organism;
       });
-      console.log(player);
+      // detect collisions
+      ORGANISMS.forEach(organism => {
+        
+      });
+        // check collison with body first
+        // check collision with other organisms
+    };
+
+    // compose world function (makes a world object)
+    function composeWorld () {
+      let world = {};
+      for (let i = 0; i < (WORLD_X+1); i++) {
+        world[i] = {};
+        for (let j = 0; j < (WORLD_Y+1); j++) {
+          world[i][j] = undefined;
+        }
+      }
+      ORGANISMS.forEach(o => {
+        o.b.forEach(bp => {
+          world[bp[0]][bp[1]] = o.c_;
+        })
+      });
+      return world;
+    };
+
+    // Paint function (paints the world depending on the coordinates)
+    function paint (piece) {
+      return piece ? piece : `rgb(0,0,0)`;
+    };
+
+    // Draw function
+    function draw () {
+      organismTick();
+      let world = composeWorld();
+      CTX.clearRect(0, 0, WIDTH, HEIGHT);
+      CTX.fillStyle = "rgb(140,224,200)";
+      CTX.strokeStyle = "rgb(140,224,200)";
+      let dgx_cache = drawgridx;
+      let dgy_cache = drawgridy;
+      let x_coord = 0,
+      y_coord = 0;
+
+      for (let i = 0; i < n; i++) {
+        CTX.fillStyle = paint(world[x_coord][y_coord]);
+        CTX.fillRect(dgx_cache, dgy_cache, TILESIZE, TILESIZE);
+        dgx_cache += TILESIZE;
+        x_coord++;
+        if (dgx_cache >= maxgridx) {
+          dgy_cache += TILESIZE;
+          dgx_cache = drawgridx;
+          y_coord++;
+          x_coord = 0;
+        }
+      }
+    };
+
+
+    Players.on('player::newplayer', function (player) {
+      // Add player with player colour
+
+      // Setup snake
+      player.onAction('left', function () {
+        // Move the snake left
+      });
+      player.onAction('left', function () {
+        // Move the snake right
+      });
+    });
+
+    // Setup canvas
+    window.addEventListener('load', function () {
+      WIDTH = CANVAS.width = CANVAS.offsetWidth;
+      HEIGHT = CANVAS.height = CANVAS.offsetHeight;
+      // Setup variables for drawing
+      drawgridx = (WIDTH % TILESIZE === 0) ? 0 : ((WIDTH % TILESIZE) / 2);
+      maxgridx = (WIDTH - (drawgridx));
+      drawgridy = (HEIGHT % TILESIZE === 0) ? 0 : ((HEIGHT % TILESIZE) / 2);
+      maxgridy = (HEIGHT - (drawgridy));
+      n = ((WIDTH - (drawgridx * 2)) * (HEIGHT - (drawgridy * 2))) / (TILESIZE * TILESIZE);
+      // Setup world
+      WORLD_X = Math.floor(WIDTH / TILESIZE) - 1;
+      WORLD_Y = Math.floor(HEIGHT / TILESIZE) - 1;
+      // Start snake timer + game
+      draw();
+      setInterval(draw, 100);
     });
     </script>
   </body>
