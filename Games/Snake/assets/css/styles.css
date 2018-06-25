@@ -58,6 +58,21 @@ body
 }
 #players > .player > .score
 {
+  height:48px;
+  display:flex;
+  flex-direction:column;
+}
+#players > .player > .score > .current
+{
+  height:32px;
+  line-height:32px;
+  font-size:30px;
+}
+#players > .player > .score > .highscore
+{
+  height:16px;
+  line-height:16px;
+  font-size:14px;
 }
 #gamearea
 {

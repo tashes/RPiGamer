@@ -8,16 +8,7 @@
   </head>
   <body>
     <div id="viewport">
-      <div id="players">
-        <div class="player">
-          <div class="colour"></div>
-          <div class="score">1040</div>
-        </div>
-        <div class="player">
-          <div class="colour"></div>
-          <div class="score">1080</div>
-        </div>
-      </div>
+      <div id="players"></div>
       <div id="gamearea">
         <canvas></canvas>
       </div>
@@ -49,11 +40,14 @@
       //   c_: `rgb(255,0,0)`
       // }
     ];
+    let FOODS = [];
+
+    let PLAYERS = document.querySelector('#players');
 
     let drawgridx, maxgridx, drawgridy, maxgridy, n;
 
     // add Organism
-    function Organism (id, velocity, bodylen, colour) {
+    function Organism (id, name, velocity, bodylen, colour) {
       if (id === undefined) id = uuid.v4();
       // id
       this.id = id;
@@ -90,6 +84,8 @@
       this.c_ = colour;
       // events
       this.e = {};
+      // name
+      this.n = name;
       // add to organisms list
       ORGANISMS.push(this);
       // return
@@ -97,10 +93,14 @@
     };
     Organism.prototype = {
       on: function (evt, callback) {
-        if (!this.e[evt] instanceof Array) {
+        if (!(this.e[evt] instanceof Array)) {
           this.e[evt] = [];
         }
         this.e[evt].push(callback);
+      },
+      kill: function () {
+        let i = ORGANISMS.findIndex(p => p.id === this.id);
+        ORGANISMS.splice(i, 1);
       }
     };
 
@@ -134,15 +134,36 @@
           organism.b.unshift(head_new);
         }
         organism.g_ = false;
-        collisionobjs = collisionobjs.concat(organism.b.map(n => {n.push(this.id); return n;}));
+        collisionobjs = collisionobjs.concat(organism.b.map(n => {n.push(organism.id); return n;}));
         return organism;
       });
-      // detect collisions
+      // detect collisions //FIXME
+      // COMBAK 1
       ORGANISMS.forEach(organism => {
-        
+        let head = organism.b[0];
+        let headflag = false;
+        collisionobjs.forEach(function (obj) {
+          if (obj[0] === head[0] && obj[1] === head[1]) {
+            if (obj[2] === organism.id) {
+              if (headflag === true) {
+                // Collision with same organism
+                if (organism.e['collision:self'] instanceof Array) {
+                  organism.e['collision:self'].forEach(c => c());
+                }
+              }
+              else {
+                headflag = true;
+              }
+            }
+            else {
+              // Collision with another organism
+              if (organism.e['collision:other'] instanceof Array) {
+                organism.e['collision:other'].forEach(c => c(ORGANISMS.find(q => q.id === obj[2])));
+              }
+            }
+          }
+        });
       });
-        // check collison with body first
-        // check collision with other organisms
     };
 
     // compose world function (makes a world object)
@@ -193,17 +214,97 @@
       }
     };
 
+    //Create Food
+    function createFood () {
+      let food1 = new Organism(uuid.v4(), "simple", [0,0], 1, `rgb(255,255,255)`);
+      food1.on('collision:other', function (organism) {
+        if (organism.n === "snake") {
+          food1.kill();
+          createFood();
+        }
+      })
+      FOODS.push(food1);
+    };
 
-    Players.on('player::newplayer', function (player) {
+    function save (player) {
+      // Save the colour of the player
+      player.save(function (currdata) {
+        if (currdata.highscore === undefined) currdata.highscore = 0;
+        if (currdata.highscore < currdata.score) {
+          currdata.highscore = currdata.score;
+          player.currentData.ele.querySelector('.score .highscore').innerHTML = currdata.score;
+        }
+        return {
+          highscore: currdata.highscore,
+          colour: currdata.colour
+        };
+      });
+    };
+
+
+    Players.on('player::readyplayer', function (player) {
       // Add player with player colour
-
+      if (player.currentData.colour === undefined) {
+        player.currentData.colour = `rgb(${148 + Math.floor(Math.random() * 107)},${148 + Math.floor(Math.random() * 107)},${148 + Math.floor(Math.random() * 107)})`;
+      }
+      player.currentData.snake = new Organism(player.id, "snake", [1,0], 4, player.currentData.colour);
+      player.currentData.score = 4;
+      // Create player score card
+      let ele = document.createElement('div');
+      ele.className = `player`;
+      let colour = document.createElement('div');
+      colour.className = `colour`;
+      colour.style.background = player.currentData.colour;
+      let score = document.createElement('div');
+      score.className = `score`;
+      score.innerHTML = `<div class="current">${player.currentData.score}</div><div class="highscore">${player.currentData.highscore}</div>`;
+      ele.appendChild(colour);
+      ele.appendChild(score);
+      PLAYERS.appendChild(ele);
+      player.currentData.ele = ele;
+      // Setup Listeners for Snake
+      player.currentData.snake.on('collision:self', () => {
+        let body = player.currentData.snake.b;
+        let newbody = [body[0], body[1], body[2], body[3]];
+        player.currentData.snake.b = newbody;
+        save(player);
+        player.currentData.score = 4;
+        // update score element
+        player.currentData.ele.querySelector('.score .current').innerHTML = player.currentData.score;
+      });
+      player.currentData.snake.on('collision:other', function (organism) {
+        if (organism.n === "simple") {
+          player.currentData.snake.g_ = true;
+          player.currentData.score++;
+        }
+        else if (organism.n === "snake") {
+          if (organism.b.length > player.currentData.snake.b.length) {
+            let body = player.currentData.snake.b;
+            let newbody = [body[0], body[1], body[2], body[3]];
+            player.currentData.snake.b = newbody;
+            save(player);
+            player.currentData.score = 4;
+          }
+        }
+        // update score element
+        player.currentData.ele.querySelector('.score .current').innerHTML = player.currentData.score;
+      });
       // Setup snake
       player.onAction('left', function () {
         // Move the snake left
+        let vec = player.currentData.snake.v;
+        player.currentData.snake.v = [vec[1], -1 * vec[0]];
       });
-      player.onAction('left', function () {
+      player.onAction('right', function () {
         // Move the snake right
+        let vec = player.currentData.snake.v;
+        player.currentData.snake.v = [-1 * vec[1], vec[0]];
       });
+      save(player);
+    });
+    Players.on('player::playerexit', function (player) {
+      player.currentData.snake.kill();
+      player.currentData.ele.parentNode.removeChild(player.currentData.ele);
     });
 
     // Setup canvas
@@ -221,7 +322,9 @@
       WORLD_Y = Math.floor(HEIGHT / TILESIZE) - 1;
       // Start snake timer + game
       draw();
-      setInterval(draw, 100);
+      setInterval(draw, 84);
+
+      createFood();
     });
     </script>
   </body>

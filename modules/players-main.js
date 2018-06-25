@@ -53,8 +53,11 @@
       PLAYERS[this.id].evts[evtname].push(callback);
     }
 
-    save () {
-      ipcRenderer.send('player::savedata', this.id, JSON.stringify(PLAYERS[this.id].currentdata));
+    save (adapter) {
+      if (typeof adapter !== "function") {
+        adapter = obj => obj;
+      }
+      ipcRenderer.send('player::savedata', this.id, JSON.stringify(adapter(PLAYERS[this.id].currentdata)));
     }
   }
 
@@ -92,7 +95,7 @@
   ipcRenderer.on('action::player::getdata', function (e, id, data, name) {
     PLAYERS[id].playerdata = PLAYERS[id].currentdata = data;
     PLAYERS[id].name = name;
-    emit('player::getdata', new Player(id));
+    emit('player::readyplayer', new Player(id));
     if (window.notify) {
       window.notify("medium", `New Player <i>${PLAYERS[id].name} has joined the game.`);
     }
@@ -112,7 +115,7 @@
     }
   });
   ipcRenderer.on('action::player::action', function (e, id, evtname, data) {
-    PLAYERS[id].evts[evtname].forEach(p => p(...data));
+    if (PLAYERS[id].evts[evtname] instanceof Array) PLAYERS[id].evts[evtname].forEach(p => p(...data));
   });
   ipcRenderer.on('action::command::quit', function () {
     ipcRenderer.send('command::stop');
